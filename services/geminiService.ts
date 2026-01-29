@@ -1,8 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { UserType, Message } from "../types";
 
-// 安定版のモデル名に変更します
-const MODEL_NAME = 'gemini-1.5-flash';
+// モデル名をより確実な 'gemini-1.5-flash-latest' に変更します
+const MODEL_NAME = 'gemini-1.5-flash-latest';
 
 export class GeminiService {
   private getSystemInstruction(userType: UserType): string {
@@ -71,17 +71,16 @@ Mini Venture Card
 
 async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage: string, apiKey: string) {
     try {
-      // APIキーをオブジェクト形式で渡します
-      const ai = new GoogleGenAI({ apiKey: apiKey });
+      // APIキーの前後にある余計なスペースを削除して初期化
+      const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
       
       const history = chatHistory.map(m => ({
         role: m.role,
         parts: [{ text: m.text }]
       }));
 
-      // AI Studio ライブラリ (@google/genai) の標準的な呼び出し形式です
       const chat = ai.chats.create({
-        model: MODEL_NAME, // ここで自動的に適切なエンドポイントが選ばれます
+        model: MODEL_NAME,
         config: {
           systemInstruction: this.getSystemInstruction(userType),
           temperature: 0.7,
@@ -89,19 +88,21 @@ async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage:
         history: history,
       });
 
-      // 送信処理。エラーが起きた場合に備えて詳細をキャッチします
       const result = await chat.sendMessageStream({ message: newMessage });
       
       for await (const chunk of result) {
-        if (chunk) {
+        // @google/genai ライブラリでは chunk.text プロパティを使用します
+        if (chunk && chunk.text) {
+          yield chunk.text;
+        } else if (typeof chunk === 'string') {
           yield chunk;
         }
       }
     } catch (error: any) {
       console.error("Gemini API Error Detail:", error);
-      // 404エラーの場合は、モデル名の不一致を通知
+      // 404エラーの場合はモデル名の不整合として具体的にスロー
       if (error.message?.includes("404")) {
-        throw new Error("モデルが見つかりませんでした。設定を確認してください。");
+        throw new Error("モデルが見つかりませんでした。モデル名を変えて試す必要があります。");
       }
       throw error; 
     }
