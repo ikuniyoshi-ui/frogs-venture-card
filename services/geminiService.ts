@@ -1,8 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { UserType, Message } from "../types";
 
-// モデル名をより確実な 'gemini-1.5-flash-latest' に変更します
-const MODEL_NAME = 'gemini-2.5-flash-lite';
+// モデル名をより確実な 'gemini-3-flash-preview' に変更します
+const MODEL_NAME = 'gemini-3-flash-preview';
 
 export class GeminiService {
   private getSystemInstruction(userType: UserType): string {
