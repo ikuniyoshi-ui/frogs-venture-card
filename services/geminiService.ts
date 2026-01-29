@@ -71,28 +71,29 @@ Mini Venture Card
 
 async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage: string, apiKey: string) {
     try {
-      // 修正: オブジェクト形式でAPIキーを渡す（ブラウザ環境で最も安定します）
-      const genAI = new GoogleGenAI({ apiKey: apiKey });
+      // @google/genai ライブラリ専用の初期化方法
+      const ai = new GoogleGenAI({ apiKey: apiKey });
       
-      const model = genAI.getGenerativeModel({
-        model: MODEL_NAME,
-        systemInstruction: this.getSystemInstruction(userType),
-      });
-
-      // 役割（role）をGeminiの仕様（user / model）に厳密に合わせる
       const history = chatHistory.map(m => ({
-        role: m.role === 'user' ? 'user' : 'model',
+        role: m.role,
         parts: [{ text: m.text }]
       }));
 
-      const chat = model.startChat({
+      // 修正ポイント: getGenerativeModel ではなく chats.create を使用します
+      const chat = ai.chats.create({
+        model: MODEL_NAME,
+        config: {
+          systemInstruction: this.getSystemInstruction(userType),
+          temperature: 0.7,
+        },
         history: history,
-        generationConfig: { temperature: 0.7 }
       });
 
-      const result = await chat.sendMessageStream(newMessage);
-      for await (const chunk of result.stream) {
-        yield chunk.text();
+      // 修正ポイント: 引数はオブジェクト形式 { message: ... } で渡します
+      const result = await chat.sendMessageStream({ message: newMessage });
+      
+      for await (const chunk of result) {
+        yield chunk; // ライブラリの仕様により chunk 自体がテキストです
       }
     } catch (error) {
       console.error("Gemini API Error Detail:", error);
