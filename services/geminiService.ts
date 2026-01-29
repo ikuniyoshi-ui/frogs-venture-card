@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { UserType, Message } from "../types";
 
 // モデル名をより確実な 'gemini-1.5-flash-latest' に変更します
-const MODEL_NAME = 'gemini-1.5-flash-latest';
+const MODEL_NAME = 'gemini-2.5-flash-lite';
 
 export class GeminiService {
   private getSystemInstruction(userType: UserType): string {
