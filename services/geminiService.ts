@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { UserType, Message } from "../types";
 
-const MODEL_NAME = 'gemini-2.0-flash-exp'; // AI Studioの最新モデルに合わせるのがおすすめ
+// 安定版のモデル名に変更します
+const MODEL_NAME = 'gemini-1.5-flash';
 
 export class GeminiService {
   private getSystemInstruction(userType: UserType): string {
@@ -68,33 +69,34 @@ Mini Venture Card
     }
   }
 
-  // 修正: apiKey を引数として受け取るように変更
-  async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage: string, apiKey: string) {
-    if (!apiKey) {
-      throw new Error("APIキーが設定されていません");
-    }
+async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage: string, apiKey: string) {
+    try {
+      if (!apiKey) throw new Error("APIキーが空です");
 
-    const ai = new GoogleGenAI(apiKey);
-    
-    const history = chatHistory.map(m => ({
-      role: m.role,
-      parts: [{ text: m.text }]
-    }));
+      const genAI = new GoogleGenAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: MODEL_NAME,
+        systemInstruction: this.getSystemInstruction(userType),
+      });
 
-    const chat = ai.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction: this.getSystemInstruction(userType),
-    }).startChat({
-      history: history,
-      generationConfig: {
-        temperature: 0.7,
+      const history = chatHistory.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.text }]
+      }));
+
+      const chat = model.startChat({
+        history: history,
+        generationConfig: { temperature: 0.7 }
+      });
+
+      const result = await chat.sendMessageStream(newMessage);
+      for await (const chunk of result.stream) {
+        yield chunk.text();
       }
-    });
-
-    const result = await chat.sendMessageStream(newMessage);
-    for await (const chunk of result.stream) {
-      const chunkText = chunk.text();
-      yield chunkText;
+    } catch (error) {
+      // ブラウザの「コンソール」にエラーの詳細を出力します
+      console.error("Gemini API Error Detail:", error);
+      throw error; 
     }
   }
 }
