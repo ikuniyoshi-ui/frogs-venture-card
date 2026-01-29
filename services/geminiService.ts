@@ -71,7 +71,7 @@ Mini Venture Card
 
 async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage: string, apiKey: string) {
     try {
-      // @google/genai ライブラリ専用の初期化方法
+      // APIキーをオブジェクト形式で渡します
       const ai = new GoogleGenAI({ apiKey: apiKey });
       
       const history = chatHistory.map(m => ({
@@ -79,9 +79,9 @@ async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage:
         parts: [{ text: m.text }]
       }));
 
-      // 修正ポイント: getGenerativeModel ではなく chats.create を使用します
+      // AI Studio ライブラリ (@google/genai) の標準的な呼び出し形式です
       const chat = ai.chats.create({
-        model: MODEL_NAME,
+        model: MODEL_NAME, // ここで自動的に適切なエンドポイントが選ばれます
         config: {
           systemInstruction: this.getSystemInstruction(userType),
           temperature: 0.7,
@@ -89,14 +89,20 @@ async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage:
         history: history,
       });
 
-      // 修正ポイント: 引数はオブジェクト形式 { message: ... } で渡します
+      // 送信処理。エラーが起きた場合に備えて詳細をキャッチします
       const result = await chat.sendMessageStream({ message: newMessage });
       
       for await (const chunk of result) {
-        yield chunk; // ライブラリの仕様により chunk 自体がテキストです
+        if (chunk) {
+          yield chunk;
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gemini API Error Detail:", error);
+      // 404エラーの場合は、モデル名の不一致を通知
+      if (error.message?.includes("404")) {
+        throw new Error("モデルが見つかりませんでした。設定を確認してください。");
+      }
       throw error; 
     }
   }
