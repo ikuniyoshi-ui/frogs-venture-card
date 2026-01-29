@@ -71,14 +71,15 @@ Mini Venture Card
 
 async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage: string, apiKey: string) {
     try {
-      if (!apiKey) throw new Error("APIキーが空です");
-
-      const genAI = new GoogleGenAI(apiKey);
+      // 修正: オブジェクト形式でAPIキーを渡す（ブラウザ環境で最も安定します）
+      const genAI = new GoogleGenAI({ apiKey: apiKey });
+      
       const model = genAI.getGenerativeModel({
         model: MODEL_NAME,
         systemInstruction: this.getSystemInstruction(userType),
       });
 
+      // 役割（role）をGeminiの仕様（user / model）に厳密に合わせる
       const history = chatHistory.map(m => ({
         role: m.role === 'user' ? 'user' : 'model',
         parts: [{ text: m.text }]
@@ -94,7 +95,6 @@ async *sendMessageStream(userType: UserType, chatHistory: Message[], newMessage:
         yield chunk.text();
       }
     } catch (error) {
-      // ブラウザの「コンソール」にエラーの詳細を出力します
       console.error("Gemini API Error Detail:", error);
       throw error; 
     }
